@@ -62,16 +62,23 @@ const Proveedores = () => {
             });
     };
 
-    const handleEdit = (id) => {
-        handleShowEditModal();
-        setEditId(id);
-        const proveedor = data.find((item) => item.id === id);
-        if (proveedor) {
-            setEditCedula_Rnc(proveedor.cedula_Rnc);
-            setEditnombreComercial(proveedor.nombreComercial);
-            setEditEstado(proveedor.estado);
-        }
-    };
+const handleEdit = (id) => {
+      console.log("Editando ID:", id); // 👈 Verifica que el ID sea correcto
+      if (!id) {
+          toast.error("ID no válido para edición");
+          return;
+      }
+  
+      handleShowEditModal();
+      setEditId(id);
+      const proveedor = data.find((item) => item.id === id);
+      if (proveedor) {
+          setEditCedula_Rnc(proveedor.cedula_Rnc);
+          setEditnombreComercial(proveedor.nombreComercial);
+          setEditEstado(proveedor.estado);
+      }
+  };
+  
 
     const handleUpdate = () => {
         const url = `https://localhost:7039/api/Proveedores/${editId}`;
@@ -152,8 +159,9 @@ const Proveedores = () => {
                                     <td>{item.nombreComercial}</td>
                                     <td>{item.estado ? "Activo" : "Inactivo"}</td>
                                     <td>
-                                        <Button variant="warning" onClick={() => handleEdit(item.id)}>Editar</Button>
-                                        <Button variant="danger" onClick={() => handleDelete(item.id)}>Eliminar</Button>
+                                        <button className="btn btn-warning me-2" onClick={() => handleEdit(item.id)}>
+                                            <i className="bi bi-pencil"></i> Editar
+                                        </button>
                                     </td>
                                 </tr>
                             ))

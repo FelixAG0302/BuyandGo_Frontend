@@ -6,7 +6,7 @@ import Departamentos from './pages/Departamentos';
 import UnidadesMedida from './pages/UnidadesMedida';
 import Home from './pages/Home';
 import Articulos from './pages/Articulos';
-// import IndexDepartamentos from './CrudDepartamentos/Indexdepartamentos';
+import Proveedores from './pages/Proveedores';
 
 function App() {
   return (
@@ -21,9 +21,8 @@ function App() {
             <Route path="/departamentos" element={<Departamentos />} />
             <Route path="/unidadesMedida" element={<UnidadesMedida />} />
             <Route path="/articulos" element={< Articulos />}/>
-            {/* <Route path="/articulos" element={< />}/>
-            <Route path="/proveedores"element={< />} />
-            <Route path="/ordenCompra" element={< />} /> */}
+            <Route path="/proveedores"element={< Proveedores/>} />
+            {/* <Route path="/ordenCompra" element={< />} /> */}
           </Routes>
         </div>
       </div>
