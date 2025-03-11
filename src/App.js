@@ -5,6 +5,7 @@ import Slidebar from './components/Slidebar';
 import Departamentos from './pages/Departamentos';
 import UnidadesMedida from './pages/UnidadesMedida';
 import Home from './pages/Home';
+import Articulos from './pages/Articulos';
 // import IndexDepartamentos from './CrudDepartamentos/Indexdepartamentos';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/departamentos" element={<Departamentos />} />
             <Route path="/unidadesMedida" element={<UnidadesMedida />} />
+            <Route path="/articulos" element={< Articulos />}/>
             {/* <Route path="/articulos" element={< />}/>
             <Route path="/proveedores"element={< />} />
             <Route path="/ordenCompra" element={< />} /> */}
