@@ -7,6 +7,7 @@ import UnidadesMedida from './pages/UnidadesMedida';
 import Home from './pages/Home';
 import Articulos from './pages/Articulos';
 import Proveedores from './pages/Proveedores';
+import OrdenCompra from './pages/OrdenCompra';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
             <Route path="/unidadesMedida" element={<UnidadesMedida />} />
             <Route path="/articulos" element={< Articulos />}/>
             <Route path="/proveedores"element={< Proveedores/>} />
+            <Route path="/ordenCompra" element={< OrdenCompra />} />
             {/* <Route path="/ordenCompra" element={< />} /> */}
           </Routes>
         </div>

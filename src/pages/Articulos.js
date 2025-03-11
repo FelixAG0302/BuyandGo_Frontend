@@ -232,7 +232,15 @@ const ArticulosComponent = () => {
                                 className="form-control mb-3"
                                 placeholder="Existencia"
                                 value={existencia}
-                                onChange={(e) => setExistencia(parseInt(e.target.value))}
+                                onChange={(e) => {
+                                    const value = parseInt(e.target.value, 10); 
+                                    if (!isNaN(value) && value >= 0) { 
+                                    setExistencia(value);
+                                    } else {
+                                    
+                                    alert("La existencia no puede ser menor que 0.");
+                                    }
+                                }}
                             />
                             <label>Unidad de medida</label>
                             <select
