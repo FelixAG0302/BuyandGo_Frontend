@@ -23,23 +23,7 @@ function NavbarNav(args) {
     <div>
       <Navbar {...args}>
         <NavbarBrand href="/">Buy and Go</NavbarBrand>
-        <NavbarToggler onClick={toggle} />
-        <Collapse isOpen={isOpen} navbar>
-          <Nav className="ms-auto" navbar>
-            <UncontrolledDropdown nav inNavbar>
-              <DropdownToggle nav caret>
-                Options
-              </DropdownToggle>
-              <DropdownMenu right>
-                <DropdownItem>Option 1</DropdownItem>
-                <DropdownItem>Option 2</DropdownItem>
-                <DropdownItem divider />
-                <DropdownItem>Reset</DropdownItem>
-              </DropdownMenu>
-            </UncontrolledDropdown>
-          </Nav>
-          <NavbarText>Simple Text</NavbarText>
-        </Collapse>
+          <NavbarText>Jose Palzamos</NavbarText>       
       </Navbar>
     </div>
   );
