@@ -10,6 +10,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import Swal from 'sweetalert2';
 import "bootstrap-icons/font/bootstrap-icons.css";
 import * as FaIcons from "react-icons/fa";
+import FiltroBusqueda from "../components/FiltroBusqueda";
 
 const UnidadesMedida = () => {
 
@@ -21,6 +22,7 @@ const UnidadesMedida = () => {
   const [editId, setEditId] = useState(null);
   const [editDescripcion, setEditDescripcion] = useState('');
   const [editEstado, setEditEstado] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const handleCloseEditModal = () => setShowEditModal(false);
   const handleShowEditModal = () => setShowEditModal(true);
@@ -33,19 +35,36 @@ const UnidadesMedida = () => {
       getData();
   }, []);
 
-  const getData = () => {
-      axios.get('https://localhost:7039/api/UnidadesMedidas/')
-          .then((result) => {
-              setData(result.data);
-          })
-          .catch((error) => {
-              if (!error.response) {
-                  toast.error('Error de red: No se pudo conectar al servidor');
-              } else {
-                  toast.error(`Error del servidor: ${error.response.status} - ${error.message}`);
-              }
-          });
+  const getData = (search = "") => {
+    axios.get(`https://localhost:7039/api/UnidadesMedidas?descripcion=${encodeURIComponent(search)}`)
+        .then((result) => {
+            setData(result.data); // Esto asegurará que la tabla se renderice con los datos filtrados
+        })
+        .catch((error) => {
+            if (!error.response) {
+                toast.error('Error de red: No se pudo conectar al servidor');
+            } else {
+                toast.error(`Error del servidor: ${error.response.status} - ${error.message}`);
+            }
+        });
+};
+
+
+  const handleSearchChange = (event) => {
+      setSearchTerm(event.target.value);
   };
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+    getData(searchTerm);
+};
+
+
+const handleSearchReset = () => {
+  setSearchTerm(""); // Limpiar el campo de búsqueda
+  getData(""); // Obtener todos los datos nuevamente
+};
+
 
   // Guardar un nuevo Unidad de Medida
   const handleSave = () => {
@@ -98,32 +117,6 @@ const UnidadesMedida = () => {
           });
   };
 
-  // Eliminar una Unidad de Medida y uso de sweetalert2
-  const handleDelete = (id) => {
-      Swal.fire({
-          title: '¿Estás seguro?',
-          text: "¡No podrás revertir esto!",
-          icon: 'warning',
-          showCancelButton: true,
-          confirmButtonColor: '#3085d6',
-          cancelButtonColor: '#d33',
-          confirmButtonText: 'Sí, eliminar',
-          cancelButtonText: 'Cancelar'
-      }).then((result) => {
-          if (result.isConfirmed) {
-              const url = `https://localhost:7039/api/UnidadesMedidas/${id}`;
-              axios.delete(url)
-                  .then((result) => {
-                      getData();
-                      toast.success("Unidade de medida eliminada exitosamente");
-                  })
-                  .catch((error) => {
-                      toast.error("Error al eliminar la Unidade  de Medida");
-                  });
-          }
-      });
-  };
-
   // Limpiar los campos del formulario
   const clear = () => {
       setDescripcion('');
@@ -144,7 +137,16 @@ const UnidadesMedida = () => {
           </button>
         </Col>
       </Row>
-  
+      <Row className="mb-4">
+        <Col>
+            <FiltroBusqueda 
+              handleChange={handleSearchChange}
+              handleSubmit={handleSearchSubmit}
+              handleReset={handleSearchReset}
+              searchTerm={searchTerm}
+            />
+          </Col>
+      </Row>  
       <Table striped bordered hover responsive className="shadow-sm">
         <thead className="bg-light">
           <tr>
@@ -164,9 +166,6 @@ const UnidadesMedida = () => {
                 <td>
                   <button className="btn btn-warning me-2" onClick={() => handleEdit(item.id)}>
                     <i className="bi bi-pencil"></i> Editar
-                  </button>
-                  <button className="btn btn-danger" onClick={() => handleDelete(item.id)}>
-                    <i className="bi bi-trash"></i> Eliminar
                   </button>
                 </td>
               </tr>
