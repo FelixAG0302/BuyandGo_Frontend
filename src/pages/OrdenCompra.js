@@ -12,6 +12,8 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import * as FaIcons from "react-icons/fa";
 
 const OrdenCompra = () => {
+
+
   // Estados para listado y modales
   const [data, setData] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -19,8 +21,23 @@ const OrdenCompra = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailOrder, setDetailOrder] = useState(null);
 
+
+  //Filtros
+
+  const [filterFecha, setFilterFecha] = useState('');
+const [filterProveedor, setFilterProveedor] = useState('');
+const [filterEstado, setFilterEstado] = useState('');
+
+const filteredData = data.filter(item => {
+  const matchesFecha = filterFecha ? item.fecha.includes(filterFecha) : true;
+  const matchesProveedor = filterProveedor ? item.proveedorNombre.includes(filterProveedor) : true;
+  const matchesEstado = filterEstado ? item.estado.toString() === filterEstado : true;
+  
+  return matchesFecha && matchesProveedor && matchesEstado;
+});
+
   // Estados para crear orden
-  const [fecha, setFecha] = useState('');
+  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]); // Establecer la fecha actual como valor por defecto
   const [idProveedor, setIdProveedor] = useState('');
   const [estado, setEstado] = useState('true'); // como string para el select
   const [proveedores, setProveedores] = useState([]);
@@ -39,13 +56,19 @@ const [unidadesMedida, setUnidadesMedida] = useState([]);
   const [editFecha, setEditFecha] = useState('');
   const [editIdProveedor, setEditIdProveedor] = useState('');
   const [editEstado, setEditEstado] = useState('');
+  const [detallesEliminados, setDetallesEliminados] = useState([]);
+
+  const [selectedOrder, setSelectedOrder] = useState([]);
 
   useEffect(() => {
+
     getData();
     getProveedores();
   getArticulos();
   getUnidadesMedida();
   }, []);
+
+  
 
   const getProveedores = () => {
     axios.get('https://localhost:7039/api/Proveedores')
@@ -71,12 +94,13 @@ const [unidadesMedida, setUnidadesMedida] = useState([]);
     axios.get('https://localhost:7039/api/OrdenCompras/')
       .then((result) => {
         setData(result.data);
-        console.log(result)
+    
       })
       .catch(() => {
         toast.error("Error al obtener las órdenes de compra");
       });
   };
+
 
   // Función para agregar un detalle a la orden en creación
   const addDetalle = () => {
@@ -91,7 +115,7 @@ const [unidadesMedida, setUnidadesMedida] = useState([]);
     }
     const cantidad = parseFloat(newDetalleCantidad);
     const costoUnitario = parseFloat(newDetalleCostoUnitario);
-    const costoTotal = cantidad * costoUnitario;
+    const costoTotal = parseFloat(cantidad * costoUnitario);
     const nuevoDetalle = {
       idArticulo: parseInt(newDetalleArticulo, 10),
       cantidad,
@@ -107,132 +131,154 @@ const [unidadesMedida, setUnidadesMedida] = useState([]);
     setNewDetalleCostoUnitario('');
   };
 
-  // Guardar la orden junto con sus detalles
-
-
   const handleSave = () => {
-    if (!idProveedor) {
-      toast.error("Por favor, selecciona un proveedor.");
-      return;
+
+    let proveedorIdParaEnviar = idProveedor;
+    console.log("el que es va a enviar: ", proveedorIdParaEnviar )
+
+    if (editId && !idProveedor && selectedOrder && selectedOrder.proveedor) {
+        proveedorIdParaEnviar = selectedOrder.proveedor.id;
+        console.log("el que se debe enviar si no modifica: ", proveedorIdParaEnviar )
     }
-  
+
+    if (!proveedorIdParaEnviar) {
+        toast.error("Por favor, selecciona un proveedor.");
+        return;
+    }
+
     if (detalles.length === 0) {
       toast.error("Por favor, agrega al menos un detalle.");
       return;
     }
   
+    // Establecer la fecha actual
+    const fechaHoy = new Date().toISOString(); // Fecha de hoy
+  
+    // Preparación de los datos para la orden de compra
     const orderData = {
-      fecha: new Date(fecha).toISOString(),
-      idProveedor: parseInt(idProveedor, 10),
-      estado: estado === "true",
+      fecha: fechaHoy,
+      idProveedor: parseInt(proveedorIdParaEnviar, 10),
+      Estado: estado === "true",
     };
   
     if (editId) {
-      // Actualizar Orden
-      axios.put('https://localhost:7039/api/OrdenCompras/${editId}, { id: editId, ...orderData }')
-        .then(() => {
-          toast.success("Orden de compra actualizada exitosamente");
-  
-          // Actualizar detalles (podrías hacer un DELETE y luego un POST de todos)
-          axios.put('https://localhost:7039/api/DetalleOrdenCompras/Orden/${editId}, detalles')
-            .then(() => {
-              toast.success("Detalles actualizados");
-              setShowCreateModal(false);
-              getData();
-            })
-            .catch(() => toast.error("Error al actualizar los detalles"));
-  
-        })
-        .catch(() => toast.error("Error al actualizar la orden de compra"));
-    } else {
-      // Crear Nueva Orden
-      axios.post('https://localhost:7039/api/OrdenCompras/', orderData)
-        .then((response) => {
-          const ordenCompraId = response.data.id;
-  
-          axios.post('https://localhost:7039/api/DetalleOrdenCompras/', detalles.map(d => ({
-            idOrdenCompra: ordenCompraId,
-            ...d
-          })))
+      console.log("Estos son los detalles que se van a eliminar: ", detallesEliminados);
+
+      // Actualizar datos de la orden
+      const orderData = {
+          id: editId,
+          fecha: fecha, // Usar el estado fecha
+          idProveedor: parseInt(idProveedor, 10), // Usar el estado idProveedor
+          estado: estado === "true" // Usar el estado estado
+      };
+
+      axios.put(`https://localhost:7039/api/OrdenCompras/${editId}`, orderData)
           .then(() => {
-            toast.success("Orden y detalles guardados");
-            setShowCreateModal(false);
-            getData();
+              // Eliminar detalles eliminados de la base de datos
+              Promise.all(detallesEliminados.map(idDetalleEliminado => {
+                  return axios.delete(`https://localhost:7039/api/DetalleOrdenCompras/${idDetalleEliminado}`);
+              }))
+              .then(() => {
+                  // Limpiar el array detallesEliminados después de la eliminación
+                  setDetallesEliminados([]);
+
+                  // Agregar nuevos detalles
+                  const nuevosDetalles = detalles.filter(detalle => !detalle.id);
+                  Promise.all(nuevosDetalles.map(detalle => {
+                      const detalleParaEnviar = {
+                          idOrdenCompra: editId,
+                          idArticulo: detalle.idArticulo,
+                          cantidad: detalle.cantidad,
+                          idUnidadMedida: detalle.idUnidadMedida,
+                          costoTotal: detalle.costoTotal
+                      };
+                      return axios.post('https://localhost:7039/api/DetalleOrdenCompras/', [detalleParaEnviar]);
+                  }))
+                  .then(() => {
+                      // Continuar con la actualización de la orden y los detalles restantes
+                      toast.success("Orden y detalles actualizados exitosamente");
+                      setShowCreateModal(false);
+                      getData();
+                  })
+                  .catch((error) => {
+                      console.error("Error al guardar detalles:", error);
+                      toast.error("Error al guardar detalles");
+                  });
+              })
+              .catch((error) => {
+                  console.error("Error al eliminar detalles:", error);
+                  toast.error("Error al eliminar detalles");
+              });
           })
-          .catch(() => toast.error("Error al guardar detalles"));
-  
-        })
-        .catch(() => toast.error("Error al crear la orden de compra"));
-    }
-  };
-
-
-  const handleUpdate = () => {
-    const url = 'https://localhost:7039/api/OrdenCompras/${editId}';
-    const updatedData = { 
-      id: editId, 
-      fecha: editFecha, 
-      idProveedor: parseInt(editIdProveedor, 10), 
-      estado: editEstado === "true" 
-    };
-
-    axios.put(url, updatedData)
-      .then(() => {
-        getData();
-        setShowEditModal(false);
-        toast.success("Orden de compra actualizada exitosamente");
-      })
-      .catch(() => {
-        toast.error("Error al actualizar la orden de compra");
-      });
-  };
-
-  // Función para eliminar la orden de compra
-const handleDeleteOrder = () => {
-    Swal.fire({
-      title: '¿Estás seguro?',
-      text: "¡Esto eliminará la orden de compra sin guardarla!",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Sí, eliminar'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        clearForm(); // Limpiar el formulario de creación
-        setShowCreateModal(false); // Cerrar el modal de creación
-        toast.success("Orden de compra eliminada");
-      }
-    });
-  };
-
-  const handleDelete = (id) => {
-    Swal.fire({
-      title: '¿Estás seguro?',
-      text: "¡No podrás revertir esto!",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Sí, eliminar'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        const url = 'https://localhost:7039/api/OrdenCompras/${id}';
-        axios.delete(url)
-          .then(() => {
-            getData();
-            toast.success("Orden de compra eliminada exitosamente");
-          })
-          .catch(() => {
-            toast.error("Error al eliminar la orden de compra");
+          .catch((error) => {
+              console.error("Error al actualizar la orden:", error);
+              toast.error("Error al actualizar la orden");
           });
-      }
-    });
-  };
+  }else {
+      // Crear una nueva orden de compra
+      axios.post('https://localhost:7039/api/OrdenCompras/', orderData)
+          .then((response) => {
+              const ordenCompraId = response.data.id;
+
+              // Crear los detalles de la orden de compra
+              const detallesConOrdenId = detalles.map(d => ({
+                  idOrdenCompra: ordenCompraId,
+                  idArticulo: d.idArticulo,
+                  idUnidadMedida: d.idUnidadMedida,
+                  cantidad: d.cantidad,
+                  costoTotal: d.costoTotal
+              }));
+
+              console.log("Detalles a enviar:", detallesConOrdenId);
+
+              axios.post('https://localhost:7039/api/DetalleOrdenCompras/', detallesConOrdenId)
+                  .then(() => {
+                      toast.success("Orden y detalles guardados exitosamente");
+                      setShowCreateModal(false);
+                      getData();
+                  })
+                  .catch((error) => {
+                      console.error("Error al guardar detalles:", error);
+                      toast.error("Error al guardar detalles");
+                  });
+
+          })
+          .catch((error) => {
+              console.error("Error al crear la orden de compra:", error);
+              toast.error("Error al crear la orden de compra");
+          });
+  }};
+  const formattedDate = fecha.split('T')[0]; 
+
+
+const handleDelete = (id) => {
+  console.log("ID que se está enviando:", id);  // Verificar que el ID sea correcto
+  Swal.fire({
+    title: '¿Estás seguro?',
+    text: "¡No podrás revertir esto!",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Sí, eliminar'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const url = `https://localhost:7039/api/OrdenCompras/${id}`;
+      axios.delete(url)
+        .then(() => {
+          getData();
+          toast.success("Orden de compra eliminada exitosamente");
+        })
+        .catch(() => {
+          toast.error("Error al eliminar la orden de compra");
+        });
+    }
+  });
+};
 
   // Mostrar los detalles de una orden (se asume que el endpoint GET /api/OrdenCompras/{id} devuelve también los detalles)
   const viewDetails = (idOrdenCompra) => {
-    axios.get('https://localhost:7039/api/DetalleOrdenCompras/Orden/${idOrdenCompra}')
+    axios.get(`https://localhost:7039/api/DetalleOrdenCompras/Orden/${idOrdenCompra}`)
       .then((result) => {
         setDetailOrder({ ...detailOrder, detallesOrden: result.data });
         setShowDetailModal(true);
@@ -243,9 +289,12 @@ const handleDeleteOrder = () => {
       });
   
   };
+
+
+
   // Limpiar el formulario de creación
   const clearForm = () => {
-    setFecha('');
+   
     setIdProveedor('');
     setEstado('true');
     setDetalles([]);
@@ -259,46 +308,107 @@ const handleDeleteOrder = () => {
     clearForm();
     setEditId(null);
     setShowCreateModal(true);
+    
+
   };
+
+  const GetDataFromOrder = (idOrdenCompra) => {
+    axios.get(`https://localhost:7039/api/OrdenCompras/${idOrdenCompra}`)
+      .then((result) => {
+        setSelectedOrder(result.data)
+        
+        // Since we are already fetching the order details directly in handleEdit, 
+        // this function is only useful if you want to process something with the result later
+        // (such as populating selectedOrder or further data processing).
+      
+      })
+      .catch(() => {
+        toast.error("Error al obtener la orden de compra");
+      });
+  };
+
+
   const handleEdit = (id) => {
+    GetDataFromOrder(id);
     setEditId(id);
+
+  
     const orden = data.find((item) => item.id === id);
     if (orden) {
-        // Asignación de los datos de la orden al estado para editar
-        setFecha(orden.fecha); // Asigna la fecha de la orden
-        setIdProveedor(orden.idProveedor); // Asigna el proveedor
-        setEstado(orden.estado.toString()); // Asigna el estado como string
-        setDetalles(orden.detalles || []); // Asigna los detalles de la orden (puede ser un array vacío si no hay detalles)
-
-        // Actualizar los detalles en el estado
-        axios.get('https://localhost:7039/api/DetalleOrdenCompras/Orden/${id}')
+      setFecha(orden.fecha);
+       // Buscar el proveedor por nombre
+       const proveedor = proveedores.find((p) => p.nombreComercial === orden.proveedorNombre);
+       if (proveedor) {
+           setIdProveedor(proveedor.id);
+       } else {
+           console.error("No se encontró el proveedor con nombre:", orden.proveedorNombre);
+       }
+      console.log("al momento de abrir: ", proveedor.id)
+      setEstado(orden.estado.toString());
+      setDetalles(orden.detalles || []);
+  
+      axios.get(`https://localhost:7039/api/DetalleOrdenCompras/Orden/${id}`)
         .then((result) => {
-            setDetalles(result.data);  // Cargar los detalles de la orden
+          // Verificar los datos recibidos de la API
+          console.log("Detalles recibidos de la API:", result.data);
+  
+          // Asegurarse de que cada detalle tenga un idArticulo
+          const detallesConIdArticulo = result.data.map(detalle => ({
+            ...detalle,
+            idArticulo: detalle.idArticulo // Asegurar que idArticulo está presente
+          }));
+          setDetalles(detallesConIdArticulo);
         })
         .catch(() => {
-            toast.error("Error al obtener los detalles de la orden");
+          toast.error("Error al obtener los detalles de la orden");
         });
-
-        // Mostrar el modal de edición
-        setShowCreateModal(true);
+  
+      setShowCreateModal(true);
     }
-};
+  };
+  
   const handleDetalleChange = (index, field, value) => {
     const updatedDetalles = [...detalles];
-    updatedDetalles[index][field] = value;
   
-    // Calcular el nuevo costo total
+    if (field === 'idArticulo') {
+      updatedDetalles[index].idArticulo = parseInt(value, 10); // Actualizar con el ID del artículo
+    } else if (field === 'idUnidadMedida') {
+      // ... (tu código existente)
+    } else {
+      updatedDetalles[index][field] = value;
+    }
+  
     if (field === 'cantidad' || field === 'costoUnitario') {
       updatedDetalles[index].costoTotal = updatedDetalles[index].cantidad * updatedDetalles[index].costoUnitario;
     }
   
     setDetalles(updatedDetalles);
   };
+const handleDeleteDetalle = (index, id) => {
+  const updatedDetalles = detalles.filter((_, i) => i !== index);
+  setDetalles(updatedDetalles);
+  if (id) {
+    setDetallesEliminados([...detallesEliminados, id]);
+  }
+};let proveedorSelected = "";
 
-  const handleDeleteDetalle = (index) => {
-    const updatedDetalles = detalles.filter((_, i) => i !== index);
-    setDetalles(updatedDetalles);
+if (editId && selectedOrder && selectedOrder.proveedor && selectedOrder.proveedor.id) {
+    proveedorSelected = selectedOrder.proveedor.id.toString();
+}
+
+  const handleArticuloSeleccionado = (idArticulo) => {
+    setNewDetalleArticulo(idArticulo);
+  
+    const articulo = articulos.find(a => a.id === parseInt(idArticulo));
+    if (articulo) {
+      setNewDetalleUnidadMedida(articulo.idUnidadMedidas || '');
+      setNewDetalleCostoUnitario(articulo.costoUnitario || '');
+    } else {
+      setNewDetalleUnidadMedida('');
+      setNewDetalleCostoUnitario('');
+    }
   };
+  
 
   return (
     <Fragment>
@@ -316,46 +426,94 @@ const handleDeleteOrder = () => {
 </button>
           </Col>
         </Row>
+        <div className="mb-3 row">
+  <div className="col-md-4">
+    <label>Filtrar por Fecha:</label>
+    <input 
+      type="date" 
+      className="form-control"
+      value={filterFecha} 
+      onChange={(e) => setFilterFecha(e.target.value)} 
+    />
+  </div>
+
+  <div className="col-md-4">
+        <label>Filtrar por Proveedor:</label>
+        <select 
+          className="form-control" 
+          value={filterProveedor}
+          onChange={(e) => setFilterProveedor(e.target.value)}
+        >
+          <option value="">Seleccionar Proveedor</option>
+          {proveedores.map((proveedor) => (
+            <option key={proveedor.id} value={proveedor.nombreComercial}>
+              {proveedor.nombreComercial}  {/* Ajusta el campo 'nombre' al que corresponda en tu API */}
+            </option>
+          ))}
+        </select>
+      </div>
+
+  <div className="col-md-4">
+    <label>Filtrar por Estado:</label>
+    <select 
+      className="form-control" 
+      value={filterEstado}
+      onChange={(e) => setFilterEstado(e.target.value)}
+    >
+      <option value="">Seleccionar Estado</option>
+      <option value="true">Activo</option>
+      <option value="false">Inactivo</option>
+    </select>
+  </div>
+</div>
 
         <Table striped bordered hover responsive>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Fecha</th>
-              <th>Proveedor</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.length > 0 ? (
-              data.map((item) => (
-               
-                <tr key={item.id}>
-                  <td>{item.id}</td>
-                  <td>{item.fecha}</td>
-                  <td>{item.proveedorNombre}</td>
-                  <td>{item.estado ? "Activo" : "Inactivo"}</td>
-                  <td>
-                    <button className="btn btn-info me-2" onClick={() => viewDetails(item.id)}>
-                      <i className="bi bi-eye"></i> Ver Detalles
-                    </button>
-                    <button className="btn btn-warning me-2" onClick={() => handleEdit(item.id)}>
-                      <i className="bi bi-pencil"></i> Editar
-                    </button>
-                    <button className="btn btn-danger" onClick={() => handleDelete(item.id)}>
-                      <i className="bi bi-trash"></i> Eliminar
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="5" className="text-center">Cargando...</td>
-              </tr>
-            )}
-          </tbody>
-        </Table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Fecha</th>
+      <th>Proveedor</th>
+      <th>Estado</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {filteredData.length > 0 ? (
+      filteredData.map((item) => (
+        <tr key={item.id}>
+          <td>{item.id}</td>
+          <td>{item.fecha}</td>
+          <td>{item.proveedorNombre}</td>
+          <td>{item.estado ? "Activo" : "Inactivo"}</td>
+          <td>
+            <button className="btn btn-info me-2" onClick={() => viewDetails(item.id)}>
+              <i className="bi bi-eye"></i> Ver Detalles
+            </button>
+           <button className="btn btn-warning me-2" onClick={() => {
+    const orden = data.find((item) => item.id === item.id);
+    if (orden && orden.idProveedor !== undefined && orden.idProveedor !== null) {
+        setIdProveedor(orden.idProveedor.toString()); // Establece el idProveedor antes de abrir el modal
+        handleEdit(item.id);
+    } else {
+        console.error("orden.idProveedor es undefined o null");
+        handleEdit(item.id);
+    }
+}}>
+    <i className="bi bi-pencil"></i> Editar
+</button>
+            <button className="btn btn-danger" onClick={() => handleDelete(item.id)}>
+              <i className="bi bi-trash"></i> Eliminar
+            </button>
+          </td>
+        </tr>
+      ))
+    ) : (
+      <tr>
+        <td colSpan="5" className="text-center">No se encontraron resultados</td>
+      </tr>
+    )}
+  </tbody>
+</Table>
       </Container>{/* Modal de Crear / Editar Orden */}
 <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg">
   <Modal.Header closeButton>
@@ -368,27 +526,30 @@ const handleDeleteOrder = () => {
       <input 
         type="date" 
         className="form-control" 
-        value={fecha} 
+       disabled
+        value={formattedDate} 
         onChange={(e) => setFecha(e.target.value)} 
       />
     </div>
 
     {/* Proveedor */}
     <div className="mb-3">
-      <label>Proveedor:</label>
-      <select 
-        className="form-control" 
-        value={idProveedor} 
-        onChange={(e) => setIdProveedor(e.target.value)}
-      >
-        <option value="">Seleccione un proveedor</option>
-        {proveedores.map(proveedor => (
-          <option key={proveedor.id} value={proveedor.id}>
-            {proveedor.nombreComercial}
-          </option>
-        ))}
-      </select>
-    </div>
+  <label>Proveedor:</label>
+  <select
+    className="form-control"
+    value={idProveedor || proveedorSelected} // Usa idProveedor si está definido, si no, usa proveedorSelected
+    onChange={(e) => setIdProveedor(e.target.value)}
+>
+
+  {console.log("El proveedor seleccionado es: ",  proveedorSelected)}
+    <option value="">Seleccione un proveedor</option>
+    {proveedores.map(proveedor => (
+      <option key={proveedor.id} value={proveedor.id}>
+        {proveedor.nombreComercial}
+      </option>
+    ))}
+  </select>
+</div>
 
     {/* Estado */}
     <div className="mb-3">
@@ -417,47 +578,63 @@ const handleDeleteOrder = () => {
         </tr>
       </thead>
       <tbody>
+
         {detalles.length > 0 ? (
           detalles.map((detalle, index) => (
+            
             <tr key={index}>
               {/* Cargar descripción del artículo */}
+
               <td>
-                <select 
-                  className="form-control" 
-                  value={detalle.idArticulo || ""} // Asegurarse de que se use el idArticulo del detalle
-                  onChange={(e) => handleDetalleChange(index, 'idArticulo', e.target.value)}
-                >
-                  <option value="">Seleccione un artículo</option>
-                  {articulos.map(articulo => (
-                    <option key={articulo.id} value={articulo.id}>
-                      {articulo.descripcion}
-                    </option>
-                  ))}
-                </select>
+              <select
+  className="form-control"
+  value={articulos.find(articulo => articulo.descripcion === detalle.articulo)?.id || detalle.idArticulo} // Usar detalle.idArticulo como value
+  disabled
+  onChange={(e) => handleDetalleChange(index, 'idArticulo', e.target.value)}
+>
+  {articulos.map(articulo => (
+    <option key={articulo.id} value={articulo.id}>
+      {articulo.descripcion}
+    </option>
+  ))}
+</select>
               </td>
 
               {/* Otros campos del detalle */}
               <td>
                 <input 
+                readOnly
                   type="number" 
                   className="form-control" 
                   value={detalle.cantidad} 
+                 
                   onChange={(e) => handleDetalleChange(index, 'cantidad', e.target.value)} 
                 />
               </td>
+
+
+             
               <td>
-                <select 
-                  className="form-control" 
-                  value={detalle.idUnidadMedida} 
-                  onChange={(e) => handleDetalleChange(index, 'idUnidadMedida', e.target.value)}
-                >
-                  {unidadesMedida.map(unidad => (
-                    <option key={unidad.id} value={unidad.id}>{unidad.descripcion}</option>
-                  ))}
-                </select>
-              </td>
+  <select
+  disabled
+    className="form-control"
+    value={
+      unidadesMedida.find(unidad => unidad.descripcion === detalle.unidadMedida)?.id || detalle.idUnidadMedida
+    } // Si existe detalle.unidadMedida, usa su id, si no, usa detalle.idUnidadMedida
+    onChange={(e) => handleDetalleChange(index, 'idUnidadMedida', e.target.value)} // Cuando cambia, actualiza el estado
+  >
+    {unidadesMedida.map(unidad => (
+      <option key={unidad.id} value={unidad.id}>
+        {unidad.descripcion}
+      </option>
+    ))}
+  </select>
+</td>
+           
               <td>
+                
                 <input 
+                  readOnly
                   type="number" 
                   className="form-control" 
                   value={detalle.costoUnitario} 
@@ -466,9 +643,9 @@ const handleDeleteOrder = () => {
               </td>
               <td>{detalle.costoTotal}</td>
               <td>
-                <button className="btn btn-danger" onClick={() => handleDeleteDetalle(index)}>
-                  Eliminar
-                </button>
+              <button className="btn btn-danger" onClick={() => handleDeleteDetalle(index, detalle.id)}>
+  Eliminar
+</button>
               </td>
             </tr>
           ))
@@ -481,73 +658,83 @@ const handleDeleteOrder = () => {
     </Table>
 
     {/* Sección para agregar nuevos detalles */}
-    <div className="row g-2 align-items-end">
-      <div className="col">
-        <label>Artículo:</label>
-        <select 
-          className="form-control" 
-          value={newDetalleArticulo} 
-          onChange={(e) => setNewDetalleArticulo(e.target.value)}
-        >
-          <option value="">Seleccione un artículo</option>
-          {articulos.map(articulo => (
-            <option key={articulo.id} value={articulo.id}>
-              {articulo.descripcion}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="col">
-        <label>Cantidad:</label>
-        <input 
-          type="number" 
-          className="form-control" 
-          value={newDetalleCantidad} 
-          onChange={(e) => setNewDetalleCantidad(e.target.value)} 
-        />
-      </div>
-      <div className="col">
-        <label>Unidad de Medida:</label>
-        <select 
-          className="form-control" 
-          value={newDetalleUnidadMedida} 
-          onChange={(e) => setNewDetalleUnidadMedida(e.target.value)}
-        >
-          <option value="">Seleccione una unidad</option>
-          {unidadesMedida.map(unidad => (
-            <option key={unidad.id} value={unidad.id}>
-              {unidad.descripcion}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="col">
-        <label>Costo Unitario:</label>
-        <input 
-          type="number" 
-          step="0.01" 
-          className="form-control" 
-          value={newDetalleCostoUnitario} 
-          onChange={(e) => setNewDetalleCostoUnitario(e.target.value)} 
-        />
-      </div>
-      <div className="col-auto">
+    <div className="row">
+  <div className="col-md-4 mb-3">
+    <label>Artículo:</label>
+    <select 
+      className="form-control" 
+      value={newDetalleArticulo} 
+      onChange={(e) => handleArticuloSeleccionado(e.target.value)}
+    >
+
+      <option value="">Seleccione un artículo</option>
+      {articulos.map((a) => (
+        <option key={a.id} value={a.id}>{a.descripcion}</option>
+      ))}
+    </select>
+  </div>
+
+  <div className="col-md-2 mb-3">
+    <label>Cantidad:</label>
+    <input 
+     min={1}
+      type="number" 
+      className="form-control" 
+      value={newDetalleCantidad} 
+      onChange={(e) => setNewDetalleCantidad(e.target.value)} 
+    />
+  </div>
+
+  <div className="col-md-3 mb-3">
+    <label>Unidad de Medida:</label>
+    <input 
+      type="text" 
+      className="form-control" 
+      value={
+        unidadesMedida.find(u => u.id === parseInt(newDetalleUnidadMedida))?.descripcion || ''
+      }
+      disabled
+    />
+  </div>
+
+  <div className="col-md-3 mb-3">
+    <label>Costo Unitario:</label>
+    <input 
+      type="number" 
+      className="form-control" 
+      value={newDetalleCostoUnitario} 
+      disabled 
+    />
+  </div>
+  <div className="col-auto">
         <button className="btn btn-success" onClick={addDetalle}>
           Agregar Detalle
         </button>
       </div>
-    </div>
+</div>
+
+
+
+
   </Modal.Body>
   <Modal.Footer>
-    <Button variant="danger" onClick={handleDeleteOrder}>
-      Borrar Orden
-    </Button>
+
+  
     <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
       Cerrar
     </Button>
-    <Button variant="primary" onClick={handleSave}>
-      {editId ? "Actualizar Orden" : "Guardar Orden"}
-    </Button>
+    <Button variant="primary" onClick={() => {
+    if (!idProveedor && proveedorSelected) {
+      
+        setIdProveedor(proveedorSelected); // Actualiza el estado directamente
+        console.log("este es el id que se manda: ", idProveedor);
+        handleSave(); // Llama a handleSave después de actualizar el estado
+    } else {
+        handleSave();
+    }
+}}>
+    {editId ? "Actualizar Orden" : "Guardar Orden"}
+</Button>
   </Modal.Footer>
 </Modal>
 
