@@ -340,17 +340,11 @@ const ArticulosComponent = () => {
                             <input
                                 type="number"
                                 step="0.01"
+                                min="0"
                                 className="form-control mb-3"
                                 placeholder="Costo unitario"
                                 value={costoUnitario}
-                                onChange={(e) => {
-                                    const value = parseInt(e.target.value, 10); 
-                                    if (!isNaN(value) && value >= 0) { 
-                                        setExistencia(value);
-                                    } else {
-                                        alert("La existencia no puede ser menor que 0.");
-                                    }
-                                }}
+                                onChange={(e) => setCostoUnitario(parseFloat(e.target.value))}
                             />
                             <label>Unidad de medida</label>
                             <select
@@ -423,10 +417,11 @@ const ArticulosComponent = () => {
                             <input
                                 type="number"
                                 step="0.01"
+                                min="0"
                                 className="form-control mb-3"
                                 placeholder="Costo unitario"
-                                value={costoUnitario}
-                                onChange={(e) => setEditCostoUnitario(parseInt(e.target.value))}
+                                value={editCostoUnitario}
+                                onChange={(e) => setEditCostoUnitario(parseFloat(e.target.value))}
                             />
                             <label>Unidad de medida</label>
                             <select
