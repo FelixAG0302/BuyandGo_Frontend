@@ -21,6 +21,10 @@ const Departamentos = () => {
     const [editDescripcion, setEditDescripcion] = useState('');
     const [editEstado, setEditEstado] = useState(false);
 
+    // Filtros
+    const [filterDescripcion, setFilterDescripcion] = useState('');
+    const [filterEstado, setFilterEstado] = useState('');
+
     const handleCloseEditModal = () => setShowEditModal(false);
     const handleShowEditModal = () => setShowEditModal(true);
 
@@ -30,12 +34,22 @@ const Departamentos = () => {
     // Obtener datos y metodos de la API
     useEffect(() => {
         getData();
-    }, []);
+    }, [filterDescripcion, filterEstado]); // Re-cargar datos cuando se cambian los filtros
 
     const getData = () => {
         axios.get('https://localhost:7039/api/Departamentos/')
             .then((result) => {
-                setData(result.data);
+                // Filtrar los datos según los filtros
+                let filteredData = result.data;
+                if (filterDescripcion) {
+                    filteredData = filteredData.filter((item) =>
+                        item.descripcion.toLowerCase().includes(filterDescripcion.toLowerCase())
+                    );
+                }
+                if (filterEstado !== '') {
+                    filteredData = filteredData.filter((item) => item.estado === (filterEstado === 'activo'));
+                }
+                setData(filteredData);
             })
             .catch((error) => {
                 if (!error.response) {
@@ -130,130 +144,155 @@ const Departamentos = () => {
     };
 
     return (
-      <Fragment>
-      <ToastContainer />
-      <Container className="py-4">
-        <Row className="align-items-center mb-4">
-          <Col>
-            <h3 className="text-primary"><FaIcons.FaArchway className="me-2" /> Gestion de Departamento</h3>
-          </Col>
-          <Col className="text-end">
-            <button className="btn btn-outline-primary" onClick={handleShowCreateModal}>
-              <i className="bi bi-plus-circle"></i> Registrar Departamento
-            </button>
-          </Col>
-        </Row>
-    
-        <Table striped bordered hover responsive className="shadow-sm">
-          <thead className="bg-light">
-            <tr>
-              <th>#</th>
-              <th>Descripción</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody className='table-group-divider'> 
-            {data && data.length > 0 ? (
-              data.map((item, index) => (
-                <tr key={index}>
-                  <td>{item.id}</td>
-                  <td>{item.descripcion}</td>
-                  <td>{item.estado ? "Activo" : "Inactivo"}</td>
-                  <td>
-                    <button className="btn btn-warning me-2" onClick={() => handleEdit(item.id)}>
-                      <i className="bi bi-pencil"></i> Editar
-                    </button>
-                    <button className="btn btn-danger" onClick={() => handleDelete(item.id)}>
-                      <i className="bi bi-trash"></i> Eliminar
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="4" className="text-center">Cargando...</td>
-              </tr>
-            )}
-          </tbody>
-        </Table>
-      </Container>
-    
-      {/* Modal para Crear */}
-      <Modal show={showCreateModal} onHide={handleCloseCreateModal}>
-        <Modal.Header closeButton>
-          <Modal.Title>Crear Nuevo Departamento</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Row>
-            <Col md={8}>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Ingrese una descripción"
-                value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value)}
-              />
-            </Col>
-            <Col md={4} className="d-flex align-items-center">
-              <input
-                type="checkbox"
-                checked={estado}
-                onChange={(e) => setEstado(e.target.checked)}
-                className="me-2"
-              />
-              <label>Activo</label>
-            </Col>
-          </Row>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseCreateModal}>
-            Cerrar
-          </Button>
-          <Button variant="primary" onClick={handleSave}>
-            Guardar
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    
-      {/* Modal para Editar */}
-      <Modal show={showEditModal} onHide={handleCloseEditModal}>
-        <Modal.Header closeButton>
-          <Modal.Title>Modificar Departamento</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Row>
-            <Col md={8}>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Ingrese una descripción"
-                value={editDescripcion}
-                onChange={(e) => setEditDescripcion(e.target.value)}
-              />
-            </Col>
-            <Col md={4} className="d-flex align-items-center">
-              <input
-                type="checkbox"
-                checked={editEstado}
-                onChange={(e) => setEditEstado(e.target.checked)}
-                className="me-2"
-              />
-              <label>Activo</label>
-            </Col>
-          </Row>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseEditModal}>
-            Cerrar
-          </Button>
-          <Button variant="primary" onClick={handleUpdate}>
-            Guardar Cambios
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </Fragment>
-    
+        <Fragment>
+            <ToastContainer />
+            <Container className="py-4">
+                <Row className="align-items-center mb-4">
+                    <Col>
+                        <h3 className="text-primary"><FaIcons.FaArchway className="me-2" /> Gestión de Departamento</h3>
+                    </Col>
+                    <Col className="text-end">
+                        <button className="btn btn-outline-primary" onClick={handleShowCreateModal}>
+                            <i className="bi bi-plus-circle"></i> Registrar Departamento
+                        </button>
+                    </Col>
+                </Row>
+
+                {/* Filtros */}
+                <Row className="mb-4">
+                    <Col md={4}>
+                    <label>Descripción:</label>
+                        <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Filtrar por descripción"
+                            value={filterDescripcion}
+                            onChange={(e) => setFilterDescripcion(e.target.value)}
+                        />
+                    </Col>
+                    <Col md={4}>
+                    <label>Estado:</label>
+                        <select
+                            className="form-control"
+                            value={filterEstado}
+                            onChange={(e) => setFilterEstado(e.target.value)}
+                        >
+                            <option value="">Filtrar por estado</option>
+                            <option value="activo">Activo</option>
+                            <option value="inactivo">Inactivo</option>
+                        </select>
+                    </Col>
+                </Row>
+
+                <Table striped bordered hover responsive className="shadow-sm">
+                    <thead className="bg-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Descripción</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody className='table-group-divider'>
+                        {data && data.length > 0 ? (
+                            data.map((item, index) => (
+                                <tr key={index}>
+                                    <td>{item.id}</td>
+                                    <td>{item.descripcion}</td>
+                                    <td>{item.estado ? "Activo" : "Inactivo"}</td>
+                                    <td>
+                                        <button className="btn btn-warning me-2" onClick={() => handleEdit(item.id)}>
+                                            <i className="bi bi-pencil"></i> Editar
+                                        </button>
+                                        <button className="btn btn-danger" onClick={() => handleDelete(item.id)}>
+                                            <i className="bi bi-trash"></i> Eliminar
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="4" className="text-center">Cargando...</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </Table>
+            </Container>
+
+            {/* Modal para Crear */}
+            <Modal show={showCreateModal} onHide={handleCloseCreateModal}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Crear Nuevo Departamento</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Row>
+                        <Col md={8}>
+                            <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Ingrese una descripción"
+                                value={descripcion}
+                                onChange={(e) => setDescripcion(e.target.value)}
+                            />
+                        </Col>
+                        <Col md={4} className="d-flex align-items-center">
+                            <input
+                                type="checkbox"
+                                checked={estado}
+                                onChange={(e) => setEstado(e.target.checked)}
+                                className="me-2"
+                            />
+                            <label>Activo</label>
+                        </Col>
+                    </Row>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={handleCloseCreateModal}>
+                        Cerrar
+                    </Button>
+                    <Button variant="primary" onClick={handleSave}>
+                        Guardar
+                    </Button>
+                </Modal.Footer>
+            </Modal>
+
+            {/* Modal para Editar */}
+            <Modal show={showEditModal} onHide={handleCloseEditModal}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Modificar Departamento</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Row>
+                        <Col md={8}>
+                            <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Ingrese una descripción"
+                                value={editDescripcion}
+                                onChange={(e) => setEditDescripcion(e.target.value)}
+                            />
+                        </Col>
+                        <Col md={4} className="d-flex align-items-center">
+                            <input
+                                type="checkbox"
+                                checked={editEstado}
+                                onChange={(e) => setEditEstado(e.target.checked)}
+                                className="me-2"
+                            />
+                            <label>Activo</label>
+                        </Col>
+                    </Row>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={handleCloseEditModal}>
+                        Cerrar
+                    </Button>
+                    <Button variant="primary" onClick={handleUpdate}>
+                        Guardar Cambios
+                    </Button>
+                </Modal.Footer>
+            </Modal>
+        </Fragment>
     );
 };
 
