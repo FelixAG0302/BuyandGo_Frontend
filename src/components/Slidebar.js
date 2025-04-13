@@ -71,6 +71,17 @@ const Slidebar = () => {
                         Ordenes de Compra
                     </NavLink>
                 </li>
+                <li>
+                    <NavLink
+                        to="/AsientosContables"
+                        className={({ isActive }) =>
+                            isActive ? "text-dark rounder py-2 w-100 d-inline-block px-3 active" : "text-dark rounder py-2 w-100 d-inline-block px-3"
+                        }
+                    >
+                        <FaIcons.FaShoppingCart className="me-2" />
+                        Asientos Contables
+                    </NavLink>
+                </li>
             </ul>
         </nav>
     );

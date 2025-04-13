@@ -5,6 +5,19 @@
 $light: white;
 $gray: #e7e9eb;
 
+.btn-disabled {
+    background-color: gray;
+    border-color: darkgray;
+    color: lightgray;
+    cursor: not-allowed;
+  }
+  
+  .btn-disabled:hover {
+    background-color: gray;
+    border-color: darkgray;
+    color: lightgray;
+  }
+
 .flex{
     display: flex !important;
     width: 100%;
@@ -14,6 +27,18 @@ $gray: #e7e9eb;
     background-color: $light;
     padding: 1rem 2rem  ;
     border-bottom: 1px solid $gray;
+}
+
+.app-container {
+    display: flex;
+    width: 100%;
+    height: 100vh; /* Para que ocupe toda la altura de la pantalla */
+}
+
+.content {
+    flex-grow: 1; /* Para que el contenido ocupe el espacio restante */
+    display: flex;
+    flex-direction: column;
 }
 
 .sidebar {

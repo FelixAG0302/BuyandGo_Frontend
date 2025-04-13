@@ -327,23 +327,23 @@ const handleDelete = (id) => {
       });
   };
 
-
   const handleEdit = (id) => {
     GetDataFromOrder(id);
     setEditId(id);
-
   
     const orden = data.find((item) => item.id === id);
     if (orden) {
-      setFecha(orden.fecha);
-       // Buscar el proveedor por nombre
-       const proveedor = proveedores.find((p) => p.nombreComercial === orden.proveedorNombre);
-       if (proveedor) {
-           setIdProveedor(proveedor.id);
-       } else {
-           console.error("No se encontró el proveedor con nombre:", orden.proveedorNombre);
-       }
-      console.log("al momento de abrir: ", proveedor.id)
+      // Establecer la fecha actual
+      setFecha(new Date().toISOString().split('T')[0]);
+  
+      // Buscar el proveedor por nombre
+      const proveedor = proveedores.find((p) => p.nombreComercial === orden.proveedorNombre);
+      if (proveedor) {
+        setIdProveedor(proveedor.id);
+      } else {
+        console.error("No se encontró el proveedor con nombre:", orden.proveedorNombre);
+      }
+      console.log("al momento de abrir: ", proveedor.id);
       setEstado(orden.estado.toString());
       setDetalles(orden.detalles || []);
   
@@ -408,8 +408,22 @@ if (editId && selectedOrder && selectedOrder.proveedor && selectedOrder.proveedo
       setNewDetalleCostoUnitario('');
     }
   };
-  
 
+  const handleCrearAsiento = async (idOrdenCompra) => {
+    try {
+      const response = await axios.post(`https://localhost:7039/api/OrdenCompras/${idOrdenCompra}/asiento`);
+  
+      if (response.status === 200) {
+        toast.success('Asiento contable creado exitosamente.');
+      } 
+    } catch (error) {if (error.status === 400) {
+        toast.error('Ya existe un asiento contable para esta orden.');
+      } else {
+        toast.error('Error al crear el asiento contable.');
+      }
+     
+    }
+  };
   return (
     <Fragment>
       <ToastContainer />
@@ -486,6 +500,15 @@ if (editId && selectedOrder && selectedOrder.proveedor && selectedOrder.proveedo
           <td>{item.proveedorNombre}</td>
           <td>{item.estado ? "Activo" : "Inactivo"}</td>
           <td>
+          <button
+                    className="btn btn-success me-2"
+                    onClick={() => handleCrearAsiento(item.id)}
+                    disabled={!item.estado}
+                    style={!item.estado ? { backgroundColor: 'gray', borderColor: 'darkgray', color: 'lightgray', cursor: 'not-allowed' } : {}}
+                  >
+                  <i className="bi bi-plus"></i>   Crear Asiento
+                  </button>
+
             <button className="btn btn-info me-2" onClick={() => viewDetails(item.id)}>
               <i className="bi bi-eye"></i> Ver Detalles
             </button>
@@ -504,6 +527,7 @@ if (editId && selectedOrder && selectedOrder.proveedor && selectedOrder.proveedo
             <button className="btn btn-danger" onClick={() => handleDelete(item.id)}>
               <i className="bi bi-trash"></i> Eliminar
             </button>
+         
           </td>
         </tr>
       ))
