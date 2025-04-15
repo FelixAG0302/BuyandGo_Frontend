@@ -21,7 +21,7 @@ const OrdenCompra = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailOrder, setDetailOrder] = useState(null);
 
-
+  const [asientoCreadoParaOrden, setAsientoCreadoParaOrden] = useState([]);
   //Filtros
 
   const [filterFecha, setFilterFecha] = useState('');
@@ -90,17 +90,36 @@ const [unidadesMedida, setUnidadesMedida] = useState([]);
   };
 
   // Obtener listado de órdenes
-  const getData = () => {
-    axios.get('https://localhost:7039/api/OrdenCompras/')
-      .then((result) => {
-        setData(result.data);
-    
-      })
-      .catch(() => {
-        toast.error("Error al obtener las órdenes de compra");
+  const getData = async () => {
+    try {
+      const result = await axios.get('https://localhost:7039/api/OrdenCompras/');
+      setData(result.data);
+      // Al cargar las órdenes, también verificamos si tienen asientos creados
+      result.data.forEach(orden => {
+        verificarAsientoExistente(orden.id);
       });
+    } catch (error) {
+      toast.error("Error al obtener las órdenes de compra");
+    }
   };
 
+
+  const verificarAsientoExistente = async (idOrdenCompra) => {
+    try {
+      // Ajusta la URL de tu API para verificar si existe un asiento para la orden
+      const response = await axios.get(`https://localhost:7039/api/AsientosContables/orden/${idOrdenCompra}`);
+      // Si la respuesta es exitosa (status 200) y contiene datos, asumimos que existe un asiento
+      if (response.status === 200 && response.data.length > 0) {
+        setAsientoCreadoParaOrden(prev => [...prev, idOrdenCompra]);
+      } else if (response.status === 204) {
+        // 204 No Content significa que no se encontraron asientos para esta orden
+        setAsientoCreadoParaOrden(prev => prev.filter(id => id !== idOrdenCompra));
+      }
+    } catch (error) {
+      console.error("Error al verificar el asiento contable:", error);
+      // En caso de error, no marcamos la orden como con asiento creado para permitir reintentar
+    }
+  };
 
   // Función para agregar un detalle a la orden en creación
   const addDetalle = () => {
@@ -408,20 +427,21 @@ if (editId && selectedOrder && selectedOrder.proveedor && selectedOrder.proveedo
       setNewDetalleCostoUnitario('');
     }
   };
-
   const handleCrearAsiento = async (idOrdenCompra) => {
     try {
       const response = await axios.post(`https://localhost:7039/api/OrdenCompras/${idOrdenCompra}/asiento`);
   
       if (response.status === 200) {
-        toast.success('Asiento contable creado exitosamente.');
-      } 
-    } catch (error) {if (error.status === 400) {
-        toast.error('Ya existe un asiento contable para esta orden.');
+        toast.warn('Asiento contable creado exitosamente. La orden no podrá ser eliminada.');
+        setAsientoCreadoParaOrden(prev => [...prev, idOrdenCompra]); // Agregar el ID al estado
+      }
+    } catch (error) {
+      if (error.response?.status === 400) {
+        toast.error('Ya existe un asiento contable para esta orden. La orden no podrá ser eliminada.');
+        setAsientoCreadoParaOrden(prev => [...prev, idOrdenCompra]); // También marcar como creado si ya existe
       } else {
         toast.error('Error al crear el asiento contable.');
       }
-     
     }
   };
   return (
@@ -501,18 +521,20 @@ if (editId && selectedOrder && selectedOrder.proveedor && selectedOrder.proveedo
           <td>{item.estado ? "Activo" : "Inactivo"}</td>
           <td>
           <button
-                    className="btn btn-success me-2"
-                    onClick={() => handleCrearAsiento(item.id)}
-                    disabled={!item.estado}
-                    style={!item.estado ? { backgroundColor: 'gray', borderColor: 'darkgray', color: 'lightgray', cursor: 'not-allowed' } : {}}
-                  >
-                  <i className="bi bi-plus"></i>   Crear Asiento
-                  </button>
+  className="btn btn-success me-2"
+  onClick={() => handleCrearAsiento(item.id)}
+  disabled={asientoCreadoParaOrden.includes(item.id) || !item.estado}
+  style={asientoCreadoParaOrden.includes(item.id) || !item.estado ? { backgroundColor: 'gray', borderColor: 'darkgray', color: 'lightgray', cursor: 'not-allowed' } : {}}
+>
+  <i className="bi bi-plus"></i>  Crear entradas
+</button>
 
             <button className="btn btn-info me-2" onClick={() => viewDetails(item.id)}>
               <i className="bi bi-eye"></i> Ver Detalles
             </button>
-           <button className="btn btn-warning me-2" onClick={() => {
+           <button
+             disabled={asientoCreadoParaOrden.includes(item.id)}
+           className="btn btn-warning me-2" onClick={() => {
     const orden = data.find((item) => item.id === item.id);
     if (orden && orden.idProveedor !== undefined && orden.idProveedor !== null) {
         setIdProveedor(orden.idProveedor.toString()); // Establece el idProveedor antes de abrir el modal
@@ -524,7 +546,9 @@ if (editId && selectedOrder && selectedOrder.proveedor && selectedOrder.proveedo
 }}>
     <i className="bi bi-pencil"></i> Editar
 </button>
-            <button className="btn btn-danger" onClick={() => handleDelete(item.id)}>
+            <button
+              disabled={asientoCreadoParaOrden.includes(item.id)}
+            className="btn btn-danger" onClick={() => handleDelete(item.id)}>
               <i className="bi bi-trash"></i> Eliminar
             </button>
          

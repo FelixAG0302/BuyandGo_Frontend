@@ -79,7 +79,7 @@ const Slidebar = () => {
                         }
                     >
                         <FaIcons.FaShoppingCart className="me-2" />
-                        Asientos Contables
+                        Entradas Contables
                     </NavLink>
                 </li>
             </ul>

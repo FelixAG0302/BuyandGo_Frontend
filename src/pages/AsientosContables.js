@@ -7,18 +7,17 @@ import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import * as FaIcons from "react-icons/fa";
-
 const AsientosContables = () => {
     const [data, setData] = useState([]);
+  
 
-    // Filtros
+    // Filtros (sin cambios por ahora)
     const [filterDescripcion, setFilterDescripcion] = useState('');
     const [filterTipoMovimiento, setFilterTipoMovimiento] = useState('');
     const [filterEstado, setFilterEstado] = useState('');
     const [filterFechaAsiento, setFilterFechaAsiento] = useState('');
 
-     // Obtener datos de la API
-     useEffect(() => {
+    useEffect(() => {
         getData();
     }, [filterDescripcion, filterTipoMovimiento, filterEstado, filterFechaAsiento]);
 
@@ -37,7 +36,7 @@ const AsientosContables = () => {
                     );
                 }
                 if (filterEstado !== '') {
-                    filteredData = filteredData.filter((item) => item.estado === (filterEstado === true));
+                    filteredData = filteredData.filter((item) => item.estado === (filterEstado === 'Pendiente')); // Ajustar a string
                 }
                 if (filterFechaAsiento) {
                     filteredData = filteredData.filter((item) => {
@@ -59,7 +58,6 @@ const AsientosContables = () => {
 
     const handleEnviarContabilidad = async () => {
         const asientosPendientes = data.filter(item => item.estado === true);
-
         if (asientosPendientes.length === 0) {
             toast.info("No hay asientos pendientes para enviar a contabilidad.");
             return;
@@ -67,18 +65,17 @@ const AsientosContables = () => {
 
         try {
             const token = sessionStorage.getItem('token');
-            console.log(token);
-
+      
             const asientosAgrupados = asientosPendientes.reduce((acc, asiento) => {
-                if (!acc[asiento.descripcion]) {
-                    acc[asiento.descripcion] = [];
+                if (!acc[asiento.idOrdenCompra]) {
+                    acc[asiento.idOrdenCompra] = [];
                 }
-                acc[asiento.descripcion].push(asiento);
+                acc[asiento.idOrdenCompra].push(asiento);
                 return acc;
             }, {});
 
-            for (const descripcion in asientosAgrupados) {
-                const asientos = asientosAgrupados[descripcion];
+            for (const idOrdenCompra in asientosAgrupados) {
+                const asientos = asientosAgrupados[idOrdenCompra];
                 await axios.post('https://localhost:7039/api/AsientosContables/EnviarAsientos', asientos, {
                     headers: {
                         'Content-Type': 'application/json',
@@ -86,37 +83,16 @@ const AsientosContables = () => {
                     },
                 });
 
-                for (const asiento of asientos) {
-                    await axios.put(`https://localhost:7039/api/AsientosContables/${asiento.id}`, { ...asiento, estado: false }, {
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                    });
-                }
                 
             }
         
             toast.success("Todos los asientos pendientes han sido enviados a contabilidad.");
 
             // Llamada a la API EntradaContable
-            try {
-                const responseEntradaContable = await axios.get('https://localhost:7039/api/AsientosContables/EntradaContable', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                console.log("Resultados de EntradaContable:", responseEntradaContable.data);
-                toast.info("Resultados de EntradaContable mostrados en la consola.");
-            } catch (errorEntradaContable) {
-                console.error("Error al obtener datos de EntradaContable:", errorEntradaContable);
-                toast.error("Error al obtener datos de EntradaContable.");
-            }
-
-            getData(); // Recargar datos para actualizar la tabla
+           
         } catch (error){
             if (error.response) {
+                console.error("Error al crear el asiento:", error.response?.data);
                 // El servidor respondió con un código de estado fuera del rango 2xx
                 if (error.response.status === 400) {
                     // Manejar errores de validación
@@ -143,6 +119,8 @@ const AsientosContables = () => {
                 toast.error(`Error de red: ${error.message}`);
             }
         }
+
+        getData();
     };
 
     return (
@@ -151,7 +129,7 @@ const AsientosContables = () => {
             <Container className="py-4">
                 <Row className="align-items-center mb-4">
                     <Col>
-                        <h3 className="text-primary"><FaIcons.FaBook className="me-2" /> Asientos Contables Creados</h3>
+                        <h3 className="text-primary"><FaIcons.FaBook className="me-2" /> Entradas Contables Creadas</h3>
                     </Col>
                 </Row>
 
@@ -213,15 +191,15 @@ const AsientosContables = () => {
                 <Table striped bordered hover responsive className="shadow-sm">
                     <thead className="bg-light">
                         <tr>
-                            <th>#</th>
+                            <th>#</th>                         
+                            <th>Orden de Compra</th>
                             <th>Descripción</th>
-                            <th>Tipo Inventario</th>
                             <th>Cuenta Contable</th>
                             <th>Tipo Movimiento</th>
                             <th>Fecha Asiento</th>
                             <th>Monto</th>
                             <th>Estado</th>
-                            <th>Acciones</th>
+                           
                         </tr>
                     </thead>
                     <tbody className='table-group-divider'>
@@ -229,8 +207,9 @@ const AsientosContables = () => {
                             data.map((item, index) => (
                                 <tr key={index}>
                                     <td>{item.id}</td>
+                                    <td>{item.idOrdenCompra}</td>
                                     <td>{item.descripcion}</td>
-                                    <td>{item.idTipoInventario}</td>
+                                 
                                     <td>{item.cuentaContable}</td>
                                     <td>{item.tipoMovimiento}</td>
                                     <td>{new Date(item.fechaAsiento).toLocaleDateString()}</td>
